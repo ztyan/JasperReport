@@ -1,0 +1,262 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>User Chain Information</title>
+    <style type="text/css">
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+            *, *:before, *:after {
+                box-sizing: border-box;
+            }
+
+        .main {
+            width: 100%;
+            margin-top: 20px;
+            margin-left:20px;
+        }
+
+        .report {
+            float: left;
+            width: 100%;
+            padding: 0 0;
+            text-align: center;
+            background-color: white;
+            border-color: #36505F;
+        }
+
+        @media screen and (max-width:1000px) {
+            .report {
+                width: 100% !important;
+                margin-bottom: 10px;
+            }
+        }
+
+        .control {
+            display: block;
+            margin-top:10px;
+
+        }
+
+            .control.input.text > .wrap {
+                display: block;
+            }
+
+            .control.input.password > .wrap {
+                display: block;
+            }
+
+        .error, .logout {
+            color: red;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .message {
+            display: none;
+        }
+
+        #timeZone{
+            margin-bottom:10px;
+        }
+    </style>
+    <script src="http://code.jquery.com/jquery-2.1.0.js"></script>
+    <script src="http://underscorejs.org/underscore-min.js"></script>
+    <script src="http://52.10.41.80/jasperserver-pro/client/visualize.js"></script>
+    <script type="text/javascript">
+        var drilledReport;
+        $(document).ready(function () {
+            $(':disabled').prop('disabled', false);
+            $('#tenantSelector').prop('disabled', true);
+            $("#login").on("click", function () {
+                vuname = $("#j_username").val();
+                vpass = $("#j_password").val();
+                vlocale = $("#userLocale").val();
+                vtimezone = $("#userTimezone").val();
+                visualize({
+                    auth: {
+                        name: vuname,
+                        password: vpass,
+                        locale: vlocale,
+                        timezone: vtimezone
+                    }
+                }, function (v) {
+                    showMessage(".success");
+                    //load Tenant report
+                    var tenantReport = v.report({
+                        resource: "/organizations/organization_1/reports/Test/Tenant",
+                        container: "#tenantReport",
+                        params: {
+                            TenantId: [$("#tenantSelector").val()],
+                        },
+                        linkOptions: {
+                            beforeRender: function (linkToElemPairs) {
+                                linkToElemPairs.forEach(showCursor);
+                            },
+                            events: {
+                                "click": function (ev, link) {
+                                    if (link.type == "ReportExecution") {
+                                        drilledReport = v.report({
+                                        //v("#drilledReport").report({
+                                            resource: link.parameters._report,
+                                            container: "#drilledReport",
+                                            params: {
+                                                TenantId: [link.parameters.TenantId],
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                        },
+                        error: function (err) {
+                            alert(err.message);
+                        }
+                    });
+
+                    //load HTML 5 Pie Chart Html5_Pie_Tenant
+                    var highChartPieReport = v.report({
+                        resource: "/organizations/organization_1/reports/Test/Html5_Pie_Tenant",
+                        container: "#HighChartPieReport",
+                        linkOptions: {
+                            events: {
+                                "click": function (ev, link) {
+                                    if (link.type == "ReportExecution") {
+                                        drilledReport = v.report({
+                                        //v("#drilledReport").report({
+                                            resource: link.parameters._report,
+                                            container: "#drilledReport",
+                                            params: {
+                                                TenantId: [link.parameters.TenantId],
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    //load Pie Chart belonging to JFreeChart
+                    createReport(v, "#3DPieReport", "/organizations/organization_1/reports/Test/3DPieChart");
+
+                    //load HTML 5 Chart report provided by JasperSoft
+                    createReport(v, "#HighChartReport", "/public/Samples/Reports/Cities");
+
+                    //comment below line if hard coded parameter tenant id
+                    $("#tenantSelector").on("change", function () {
+                        tenantReport.params({ "TenantId": [$("#tenantSelector").val()] }).run();
+                        if (drilledReport != undefined) {
+                            drilledReport.params({ "TenantId": [$("#tenantSelector").val()] }).run();
+                        }
+                    });
+
+                    $("#logout").click(function () {
+                        v.logout().done(function () { showMessage(".logout"); });
+                    });
+
+                    //enable select control until relative reports finishing loading in case of wrong interactivity
+                    $('#tenantSelector').prop('disabled', false);
+                });
+            });
+        });
+
+        //display Pointer if a link
+        function showCursor(pair) {
+            var el = pair.element;
+            el.style = "color:blue;"
+            el.style.cursor = "pointer";
+        }
+
+        //create and render report to specific container
+        function createReport(v, container, uri) {
+            v(container).report({
+                resource: uri,
+                error: function (err) {
+                    alert(err.message);
+                }
+            });
+        };
+
+        function showMessage(selector) {
+            $(".message").hide();
+            $(selector).show();
+        };
+
+        //comment below line if hard coded parameter tenant id
+        //function renderInputControls(data) {
+        //    var tenantIdInputControl = _.findWhere(data, { id: "TenantId" });
+        //    var select = $("#tenantSelector");
+        //    _.each(tenantIdInputControl.state.options, function (option) {
+        //        select.append("<option " + (option.selected ? "selected" : "") + " value='" + option.value + "'>" + option.label + "</option>");
+        //    });
+        //};
+    </script>
+</head>
+<body>
+    <div class="main">
+        <label class="control input text hidden" accesskey="o" for="orgId">
+            <span class="wrap">Organization:</span>
+            <input id="orgId" name="orgId" disabled="true" type="text" autocapitalize="off" />
+        </label>
+
+        <label class="control input text" for="j_username">
+            <span class="wrap">User ID:</span>
+            <input id="j_username" name="j_username" type="text" disabled="true" autocapitalize="off" />
+        </label>
+
+        <label class="control input password" for="j_password">
+            <span class="wrap">Password:</span>
+            <input class="" id="j_password" name="j_password" disabled="true" type="password" />
+        </label>
+
+        <label class="control select" for="userLocale">
+            <span class="wrap">Locale:</span>
+            <select id="userLocale" name="userLocale" disabled="true">
+                <option value="en" selected="">en</option>
+                <option value="de">de</option>
+                <option value="es">es</option>
+                <option value="fr">fr</option>
+                <option value="it">it</option>
+                <option value="ja">ja</option>
+                <option value="pt_BR">pt_BR</option>
+                <option value="zh_CN">zh_CN</option>
+            </select>
+        </label>
+
+        <label id="timeZone" class="control select" for="userTimezone">
+            Time Zone:
+            <select id="userTimezone" name="userTimezone" disabled="true">
+                <option value="Europe/Helsinki" selected="">Europe/Helsinki - Eastern European Time</option>
+                <option value="America/Los_Angeles">America/Los_Angeles - Pacific Standard Time</option>
+                <option value="America/Denver">America/Denver - Mountain Standard Time</option>
+                <option value="America/Chicago">America/Chicago - Central Standard Time</option>
+                <option value="America/New_York">America/New_York - Eastern Standard Time</option>
+                <option value="Europe/London">Europe/London - Greenwich Mean Time</option>
+                <option value="Europe/Berlin">Europe/Berlin - Central European Time</option>
+                <option value="Europe/Bucharest">Europe/Bucharest - Eastern European Time</option>
+            </select>
+        </label>
+        <button id="login" disabled="true">Login</button>
+        <button id="logout" disabled="true">Logout</button>
+        <span class="message error">Authentication Error</span>
+        <span class="message success">Logged in</span>
+        <span class="message logout">Logged out</span>
+        <!--comment below line if hard coded parameter tenant id-->
+        <label class="control select" for="tenantSelector">
+            Tenant ID:
+            <select id="tenantSelector" disabled="true">
+                <option value="1" selected="selected">1</option>
+                <option value="2">2</option>
+            </select>
+        </label>
+        <div id="tenantReport" class="report"></div>
+        <div id="drilledReport" class="report"></div>
+        <div id="HighChartPieReport" class="report"></div>
+        <div id="3DPieReport" class="report"></div>
+        <div id="HighChartReport" class="report"></div>
+    </div>
+</body>
+</html>
